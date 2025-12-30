@@ -1,4 +1,4 @@
-//DashboardLayout.jsx
+// DashboardLayout.jsx
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
@@ -8,42 +8,42 @@ import Footer from "./Footer";
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
+  const sidebarWidth = collapsed ? 72 : 240;
+
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
+    <div style={{ height: "100vh", width: "100vw" }}>
+      {/* SIDEBAR FIXED */}
       <Sidebar collapsed={collapsed} />
 
-      <div
-        style={{
-          flex: 1,                 // 🔥 INI KUNCI
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0              // 🔥 cegah overflow
-        }}
-      >
-        <Header
-          collapsed={collapsed}
-          onToggle={() => setCollapsed(!collapsed)}
-        />
+      {/* HEADER FIXED */}
+      <Header
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+      />
 
-        <main
+      {/* ===== MAIN CONTENT ===== */}
+      <main
         style={{
-          flex: 1,
-          background: "#f8fafc",
-          overflow: "auto",
-          padding: 24,
-
+          position: "relative",
+          height: "calc(100vh - 100px)", // 60 header + 40 footer
           marginTop: 60,
           marginBottom: 40,
-          marginLeft: collapsed ? 72 : 240 // 🔥 HARUS SAMA DENGAN SIDEBAR
+
+          /* 🔥 KUNCI PERBAIKAN */
+          paddingLeft: sidebarWidth + 24,
+          paddingRight: 24,
+          paddingTop: 24,
+          paddingBottom: 24,
+
+          background: "#f8fafc",
+          overflow: "auto",
+          transition: "padding-left 0.2s ease"
         }}
       >
         <Outlet />
       </main>
 
-
-        <Footer />
-      </div>
+      <Footer />
     </div>
   );
 }
-

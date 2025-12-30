@@ -16,7 +16,7 @@ export default function Footer() {
         zIndex: 1000
       }}
     >
-      © 2025 Dashboard Beasiswa
+      © 2025 Dashboard Admisi
     </footer>
   );
 }

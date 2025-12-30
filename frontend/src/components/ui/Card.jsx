@@ -4,17 +4,36 @@ export default function Card({ title, children }) {
     <div
       style={{
         background: "white",
-        borderRadius: 8,
-        padding: 16,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+        borderRadius: "16px",
+        padding: "24px",
+        boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+        border: "1px solid #e2e8f0",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        display: "flex",
+        flexDirection: "column"
       }}
     >
       {title && (
-        <h3 style={{ marginBottom: 12, fontSize: 16 }}>
-          {title}
-        </h3>
+        <div style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          marginBottom: 20, 
+          paddingBottom: 12, 
+          borderBottom: "1px solid #f1f5f9" 
+        }}>
+          <h3 style={{ 
+            fontSize: 16, 
+            fontWeight: 600, 
+            color: "#334155",
+            margin: 0
+          }}>
+            {title}
+          </h3>
+        </div>
       )}
-      {children}
+      <div style={{ flex: 1 }}>
+        {children}
+      </div>
     </div>
   );
 }
