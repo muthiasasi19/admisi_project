@@ -12,15 +12,14 @@ import {
 import axios from "axios";
 
 const COLOR_PALETTE = [
-  { lolos: "#003f5c", tidak: "#de425b" },
-  { lolos: "#00a65a", tidak: "#f39c12" },
-  { lolos: "#8e44ad", tidak: "#2c3e50" },
-  { lolos: "#d35400", tidak: "#16a085" },
-  { lolos: "#2980b9", tidak: "#c0392b" },
-  { lolos: "#27ae60", tidak: "#f1c40f" },
-  { lolos: "#e67e22", tidak: "#7f8c8d" },
+  { lolos: "#66d1f5ff", tidak: "#c0392b" }, // Biru Royal Deep
+  { lolos: "#5edeb5ff", tidak: "#c0392b" }, // Hijau Emerald
+  { lolos: "#8b56e8ff", tidak: "#c0392b" }, // Ungu Vivid
+  { lolos: "#f0fc07ff", tidak: "#c0392b" }, // Emas/Amber Gelap (Bukan Oranye Merah)
+  { lolos: "#0891b2", tidak: "#c0392b" }, // Cyan/Teal Cerah
+  { lolos: "#eb679cff", tidak: "#c0392b" }, // Pink/Magenta Deep
+  { lolos: "#4338ca", tidak: "#c0392b" }, // Indigo/Persian Blue
 ];
-
 export default function TrendLolosPerJenis({ showTable = false }) {
   const [data, setData] = useState([]);
   const [jenisList, setJenisList] = useState([]);
@@ -59,7 +58,7 @@ export default function TrendLolosPerJenis({ showTable = false }) {
   if (loading) return <div style={{ padding: 24, color: "#64748b" }}>Loading data tren...</div>;
 
   return (
-    <div style={{ width: "100%" }}>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 32 }}>
       <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #e2e8f0" }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>
           Trend Kelulusan per Jenis Beasiswa
@@ -79,13 +78,11 @@ export default function TrendLolosPerJenis({ showTable = false }) {
         gap: "20px",
         alignItems: "flex-start"
       }}>
-        
         <div style={{ flex: 1, height: 500 }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart 
               data={data} 
               margin={{ top: 20, right: 10, left: 10, bottom: 0 }}
-              // Menambahkan gap antar kategori tahun agar tidak terlalu renggang
               barCategoryGap="15%" 
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
@@ -115,7 +112,6 @@ export default function TrendLolosPerJenis({ showTable = false }) {
                     dataKey={`${j}_lolos`} 
                     fill={colors.lolos} 
                     radius={[2, 2, 0, 0]} 
-                    // Ukuran batang diperbesar (sebelumnya default sangat tipis)
                     barSize={18} 
                   />,
                   <Bar 
@@ -123,7 +119,6 @@ export default function TrendLolosPerJenis({ showTable = false }) {
                     dataKey={`${j}_tidak`} 
                     fill={colors.tidak} 
                     radius={[2, 2, 0, 0]} 
-                    // Ukuran batang diperbesar
                     barSize={18} 
                   />
                 ];
@@ -166,17 +161,82 @@ export default function TrendLolosPerJenis({ showTable = false }) {
         </div>
       </div>
 
+      {/* ===== TABLE (DETAIL PAGE ONLY) ===== */}
       {showTable && (
-        <div style={{ marginTop: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 6, height: 20, background: "#0f172a", borderRadius: 2 }}></div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: 0 }}>Matriks Detail Kelulusan</h3>
+        <div style={{
+          background: "#ffffff",
+          borderRadius: 12,
+          border: "1px solid #e2e8f0",
+          overflow: "hidden"
+        }}>
+          <div style={{
+            padding: "16px 20px",
+            background: "#f8fafc",
+            borderBottom: "1px solid #e2e8f0"
+          }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
+              Detail Matriks Kelulusan
+            </h3>
           </div>
-          <div style={{ overflowX: "auto", borderRadius: 8, border: "2px solid #e2e8f0" }}>
-             {/* Konten tabel kamu */}
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Jenis Beasiswa</th>
+                  {data.map(d => (
+                    <th key={d.tahun} style={thStyle}>{d.tahun}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {jenisList.map((jenis, idx) => {
+                  const color = COLOR_PALETTE[idx % COLOR_PALETTE.length];
+                  return (
+                    <tr key={jenis}>
+                      <td style={tdStyle}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ width: 10, height: 10, background: color.lolos }} />
+                          {jenis.replace(/_/g, " ")}
+                        </div>
+                      </td>
+                      {data.map(d => {
+                        const lolos = d[`${jenis}_lolos`] || 0;
+                        const tidak = d[`${jenis}_tidak`] || 0;
+                        const total = lolos + tidak;
+                        const rate = total ? Math.round((lolos / total) * 100) : 0;
+
+                        return (
+                          <td key={d.tahun} style={{ ...tdStyle, textAlign: "center" }}>
+                            <div>{lolos}/{total}</div>
+                            <div style={{ fontSize: 11, color: "#10b981" }}>
+                              {rate}% Lolos
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
     </div>
   );
 }
+
+const thStyle = {
+  padding: "12px 20px",
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  color: "#94a3b8"
+};
+
+const tdStyle = {
+  padding: "12px 20px",
+  fontSize: 13,
+  color: "#334155"
+};

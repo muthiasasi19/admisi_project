@@ -1,5 +1,3 @@
-// src/components/StatusPerFakultas.jsx
-
 import { useEffect, useState } from "react";
 import {
   BarChart,
@@ -20,13 +18,17 @@ export default function StatusPerFakultas({ showTable = false }) {
   const [data, setData] = useState([]);
   const [tahunList, setTahunList] = useState([]);
   const [tahunAktif, setTahunAktif] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
         const res = await axios.get(API_URL);
         const raw = res.data;
-        if (!raw.length) return;
+        if (!raw.length) {
+          setLoading(false);
+          return;
+        }
 
         const years = [...new Set(raw.map((item) => Number(item.tahun)))].sort((a, b) => b - a);
         const defaultYear = years[0];
@@ -35,8 +37,10 @@ export default function StatusPerFakultas({ showTable = false }) {
         setTahunList(years);
         setTahunAktif(defaultYear);
         applyFilter(raw, defaultYear);
+        setLoading(false);
       } catch (err) {
         console.error("Error fetch status per fakultas:", err);
+        setLoading(false);
       }
     }
     fetchData();
@@ -59,6 +63,12 @@ export default function StatusPerFakultas({ showTable = false }) {
     applyFilter(allData, year);
   };
 
+  if (loading) return <div style={{ padding: 24, color: "#64748b" }}>Memuat statistik fakultas...</div>;
+
+  // 🔥 SOLUSI ANTI-TUMPUK: Hitung tinggi dinamis berdasarkan jumlah fakultas
+  // Setiap baris diberikan ruang sekitar 50px
+  const dynamicHeight = Math.max(400, data.length * 50);
+
   return (
     <div style={{ width: "100%" }}>
       {/* ===== HEADER & FILTER SECTION ===== */}
@@ -68,14 +78,14 @@ export default function StatusPerFakultas({ showTable = false }) {
         alignItems: "flex-end",
         marginBottom: 24,
         paddingBottom: 16,
-        borderBottom: "1px solid #f1f5f9"
+        borderBottom: "2px solid #e2e8f0"
       }}>
         <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1e293b", margin: 0 }}>
-            Perbandingan Kelulusan
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+            Status Kelulusan per Fakultas
           </h2>
-          <p style={{ fontSize: 13, color: "#64748b", margin: "4px 0 0 0" }}>
-            Distribusi status pendaftar berdasarkan fakultas
+          <p style={{ fontSize: 14, color: "#475569", margin: "4px 0 0 0" }}>
+            Analisis sebaran pendaftar Lolos vs Tidak Lolos Beasiswa setiap Fakultas
           </p>
         </div>
 
@@ -92,10 +102,10 @@ export default function StatusPerFakultas({ showTable = false }) {
               border: "1px solid #cbd5e1",
               background: "#fff",
               fontSize: 14,
-              color: "#334155",
+              fontWeight: 700,
+              color: "#1e293b",
               cursor: "pointer",
-              outline: "none",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+              outline: "none"
             }}
           >
             {tahunList.map((tahun) => (
@@ -106,46 +116,65 @@ export default function StatusPerFakultas({ showTable = false }) {
       </div>
 
       {/* ===== CHART SECTION ===== */}
-      <div style={{ background: "#ffffff", borderRadius: 12 }}>
-        <ResponsiveContainer width="100%" height={380}>
-          <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            
-            <XAxis 
-              dataKey="fakultas" 
-              axisLine={{ stroke: '#cbd5e1', strokeWidth: 2 }} // Garis sumbu X dipertebal
-              tickLine={{ stroke: '#cbd5e1' }} 
-              tick={{ fill: '#475569', fontSize: 12, fontWeight: 500 }}
-              dy={10}
-            />
-            
-            <YAxis 
-              axisLine={{ stroke: '#cbd5e1', strokeWidth: 2 }} // Garis sumbu Y dipertebal
-              tickLine={{ stroke: '#cbd5e1' }} 
-              tick={{ fill: '#475569', fontSize: 12, fontWeight: 500 }}
-            />
-            
-            <Tooltip 
-              cursor={{ fill: '#f8fafc' }}
-              contentStyle={{ 
-                borderRadius: '8px', 
-                border: 'none', 
-                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-                fontSize: '12px'
-              }}
-            />
-            
-            <Legend 
-              verticalAlign="top" 
-              align="right" 
-              iconType="circle"
-              wrapperStyle={{ paddingBottom: 25, fontSize: 12, fontWeight: 600 }}
-            />
+      <div style={{ 
+        background: "#ffffff", 
+        borderRadius: 16, 
+        padding: "24px", 
+        border: "1px solid #e2e8f0",
+        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+        maxHeight: "700px", // Batasi tinggi card agar tidak terlalu panjang
+        overflowY: "auto"   // Tambahkan scroll jika fakultas sangat banyak
+      }}>
+        <div style={{ height: dynamicHeight }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={data} 
+              layout="vertical" // 🔥 Ubah ke Horizontal
+              margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
+              
+              {/* Sumbu X menjadi nilai angka */}
+              <XAxis 
+                type="number"
+                axisLine={{ stroke: '#475569', strokeWidth: 2 }}
+                tickLine={{ stroke: '#475569' }} 
+                tick={{ fill: '#0f172a', fontSize: 12, fontWeight: 700 }}
+              />
+              
+              {/* Sumbu Y menjadi nama fakultas */}
+              <YAxis 
+                dataKey="fakultas"
+                type="category"
+                axisLine={{ stroke: '#475569', strokeWidth: 2 }}
+                tickLine={{ stroke: '#475569' }} 
+                tick={{ fill: '#0f172a', fontSize: 11, fontWeight: 600 }}
+                width={180} // Lebar sumbu Y diperbesar agar nama tidak terpotong
+                interval={0} // Paksa tampilkan semua nama fakultas
+              />
+              
+              <Tooltip 
+                cursor={{ fill: '#f1f5f9' }}
+                contentStyle={{ 
+                  borderRadius: '8px', 
+                  border: '1px solid #cbd5e1', 
+                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                  fontSize: '12px'
+                }}
+              />
+              
+              <Legend 
+                verticalAlign="top" 
+                align="right" 
+                iconType="circle"
+                wrapperStyle={{ paddingBottom: 25, fontSize: 12, fontWeight: 700 }}
+              />
 
-            <Bar dataKey="Lolos" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={40} />
-            <Bar dataKey="Tidak Lolos" stackId="a" fill="#fb7185" radius={[4, 4, 0, 0]} barSize={40} />
-          </BarChart>
-        </ResponsiveContainer>
+              <Bar dataKey="Lolos" stackId="a" fill="#00a65a" barSize={25} />
+              <Bar dataKey="Tidak Lolos" stackId="a" fill="#dc2626" radius={[0, 4, 4, 0]} barSize={25} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ===== TABLE SECTION ===== */}
@@ -153,19 +182,19 @@ export default function StatusPerFakultas({ showTable = false }) {
         <div style={{ marginTop: 40 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <div style={{ width: 4, height: 16, background: "#6366f1", borderRadius: 4 }}></div>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: "#1e293b", margin: 0 }}>
-              Detail Data {tahunAktif}
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", margin: 0 }}>
+              Detail Matriks Fakultas {tahunAktif}
             </h3>
           </div>
 
-          <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid #e2e8f0" }}>
+          <div style={{ overflowX: "auto", borderRadius: 12, border: "2px solid #e2e8f0" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
               <thead>
-                <tr style={{ backgroundColor: "#f8fafc", textAlign: "left" }}>
-                  <th style={thStyle}>Fakultas</th>
-                  <th style={thStyle}>Lolos</th>
-                  <th style={thStyle}>Tidak Lolos</th>
-                  <th style={thStyle}>Total Pendaftar</th>
+                <tr style={{ backgroundColor: "#1e293b" }}>
+                  <th style={{ ...thStyle, color: "#fff" }}>Fakultas</th>
+                  <th style={{ ...thStyle, color: "#fff" }}>Lolos</th>
+                  <th style={{ ...thStyle, color: "#fff" }}>Tidak Lolos</th>
+                  <th style={{ ...thStyle, color: "#fff" }}>Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -173,30 +202,17 @@ export default function StatusPerFakultas({ showTable = false }) {
                   const total = row.Lolos + row["Tidak Lolos"];
                   return (
                     <tr key={row.fakultas} style={{ 
-                      borderTop: "1px solid #e2e8f0", 
-                      backgroundColor: idx % 2 === 0 ? "#fff" : "#f8fafc",
-                      transition: "background-color 0.2s"
+                      borderBottom: "1px solid #e2e8f0", 
+                      backgroundColor: idx % 2 === 0 ? "#fff" : "#f8fafc"
                     }}>
-                      <td style={{ ...tdStyle, fontWeight: 600, color: "#1e293b" }}>{row.fakultas}</td>
+                      <td style={{ ...tdStyle, fontWeight: 700, color: "#0f172a" }}>{row.fakultas}</td>
                       <td style={tdStyle}>
-                        <span style={{ 
-                          padding: "4px 8px", 
-                          background: "#f0fdf4", 
-                          color: "#16a34a", 
-                          borderRadius: "6px",
-                          fontWeight: 700 
-                        }}>{row.Lolos.toLocaleString()}</span>
+                        <span style={{ color: "#16a34a", fontWeight: 800 }}>{row.Lolos.toLocaleString()}</span>
                       </td>
                       <td style={tdStyle}>
-                        <span style={{ 
-                          padding: "4px 8px", 
-                          background: "#fef2f2", 
-                          color: "#dc2626", 
-                          borderRadius: "6px",
-                          fontWeight: 700 
-                        }}>{row["Tidak Lolos"].toLocaleString()}</span>
+                        <span style={{ color: "#dc2626", fontWeight: 800 }}>{row["Tidak Lolos"].toLocaleString()}</span>
                       </td>
-                      <td style={{ ...tdStyle, fontWeight: 500 }}>{total.toLocaleString()}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{total.toLocaleString()}</td>
                     </tr>
                   );
                 })}
@@ -211,7 +227,7 @@ export default function StatusPerFakultas({ showTable = false }) {
 
 const thStyle = {
   padding: "16px 20px",
-  color: "#475569",
+  textAlign: "left",
   fontWeight: 700,
   fontSize: '11px',
   textTransform: "uppercase",

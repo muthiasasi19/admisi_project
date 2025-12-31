@@ -89,10 +89,10 @@ export default function TrendPendaftarPerJenis({ showTable = false }) {
         borderBottom: "2px solid #e2e8f0"
       }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>
-          Trend Pendaftar per Tahun & Jenis
+          Trend Pendaftar per Tahun & Jenis Beasiswa
         </h2>
         <p style={{ fontSize: 14, color: "#475569", margin: "4px 0 0 0" }}>
-          Visualisasi volume pendaftaran berdasarkan kategori beasiswa tiap periode
+          Visualisasi jumlah pendaftaran berdasarkan kategori beasiswa
         </p>
       </div>
 
