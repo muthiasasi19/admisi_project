@@ -9,99 +9,68 @@ router = APIRouter(
     tags=["Camaru Beasiswa"]
 )
 
-@router.get("/konversi-persentase")
-def konversi_persentase_per_tahun():
+@router.get("/konversi-tahunan")
+def konversi_tahunan_summary():
     """
-    Konversi Camaru Beasiswa per Tahun (Persentase)
-
-    Definisi:
-    - Tidak lolos beasiswa
-    - Tapi diterima jalur lain (match nama + tgl lahir)
-    - Valid pembayaran (TERMIN / LUNAS)
+    Menampilkan ringkasan konversi per tahun:
+    - Total Tidak Lolos (dari tabel Camaru_Tidak_Lolos_Beasiswa)
+    - Total Konversi (yang mendaftar lagi, bayar, dan jadi mahasiswa)
+    - Persentase Konversi
     """
 
     query = text("""
-        /* ===============================
-           1. BASE CAMARU + BEASISWA
-        =============================== */
-        WITH base AS (
-            SELECT
-                c.CAMARU_ID,
+        WITH cte_basis_tidak_lolos AS (
+            -- 1. Hitung total mahasiswa yang tidak lolos beasiswa per tahun
+            SELECT 
                 c.THAJARANID AS tahun,
-                c.FULLNAME,
-                c.tgl_lahir
-            FROM Camaru c
-            JOIN Camaru_Beasiswa cb
-                ON c.CAMARU_ID = cb.Camaru_Id
+                COUNT(DISTINCT tlb.Camaru_Id) AS total_tidak_lolos
+            FROM Camaru_Tidak_Lolos_Beasiswa tlb
+            JOIN Camaru c ON tlb.Camaru_Id = c.CAMARU_ID
+            GROUP BY c.THAJARANID
+        ),
+        
+        cte_identitas_tl AS (
+            -- Ambil identitas untuk dicocokkan
+            SELECT 
+                tlb.Camaru_Id AS id_lama,
+                c1.FULLNAME,
+                c1.tgl_lahir,
+                c1.THAJARANID AS tahun
+            FROM Camaru_Tidak_Lolos_Beasiswa tlb
+            JOIN Camaru c1 ON tlb.Camaru_Id = c1.CAMARU_ID
         ),
 
-        /* ===============================
-           2. STATUS SELEKSI
-        =============================== */
-        status_seleksi AS (
-            SELECT
-                b.*,
-                CASE
-                    WHEN ac.CAMARU_ID IS NOT NULL THEN 'LOLOS'
-                    ELSE 'TIDAK_LOLOS'
-                END AS status_seleksi
-            FROM base b
-            LEFT JOIN ACCEPTED_CANDIDATES ac
-                ON b.CAMARU_ID = ac.CAMARU_ID
-        ),
-
-        /* ===============================
-           3. PEMBAYARAN VALID
-        =============================== */
-        pembayaran_valid AS (
-            SELECT DISTINCT camaru_id
-            FROM resume_pembayaran_all
-            WHERE status_bayar IN ('TERMIN','LUNAS')
-        ),
-
-        /* ===============================
-           4. TIDAK LOLOS + BAYAR
-        =============================== */
-        tidak_lolos_valid AS (
-            SELECT s.*
-            FROM status_seleksi s
-            JOIN pembayaran_valid pv
-                ON s.CAMARU_ID = pv.camaru_id
-            WHERE s.status_seleksi = 'TIDAK_LOLOS'
-        ),
-
-        /* ===============================
-           5. KONVERSI (DITERIMA JALUR LAIN)
-        =============================== */
-        konversi AS (
-            SELECT DISTINCT
-                nl.CAMARU_ID,
-                nl.tahun
-            FROM tidak_lolos_valid nl
-            JOIN Camaru c2
-                ON nl.FULLNAME = c2.FULLNAME
-               AND nl.tgl_lahir = c2.tgl_lahir
-            JOIN ACCEPTED_CANDIDATES ac2
-                ON c2.CAMARU_ID = ac2.CAMARU_ID
+        cte_total_konversi AS (
+            -- 2. Hitung yang berhasil konversi (Lolos jalur lain + Bayar + Mahasiswa)
+            SELECT 
+                tl.tahun,
+                COUNT(DISTINCT tl.id_lama) AS total_konversi
+            FROM cte_identitas_tl tl
+            INNER JOIN ACCEPTED_CANDIDATES ac ON ac.CAMARU_ID <> tl.id_lama
+            INNER JOIN Camaru c2 ON ac.CAMARU_ID = c2.CAMARU_ID
+            INNER JOIN resume_pembayaran_all rp ON c2.CAMARU_ID = rp.camaru_id
+            INNER JOIN Mahasiswa m ON c2.CAMARU_ID = m.Camaru_Id
+            WHERE 
+                c2.FULLNAME = tl.FULLNAME 
+                AND c2.tgl_lahir = tl.tgl_lahir
+                AND c2.JNS_DAFTAR <> 'BEASW'
+                AND rp.status_bayar IN ('LP', 'LUNAS')
+            GROUP BY tl.tahun
         )
 
-        /* ===============================
-           6. AGREGASI FINAL
-        =============================== */
-        SELECT
-            nl.tahun,
-            COUNT(DISTINCT nl.CAMARU_ID) AS total_tidak_lolos,
-            COUNT(DISTINCT k.CAMARU_ID) AS total_konversi,
-            ROUND(
-                COUNT(DISTINCT k.CAMARU_ID) * 100.0 /
-                NULLIF(COUNT(DISTINCT nl.CAMARU_ID), 0),
-                2
-            ) AS persentase_konversi
-        FROM tidak_lolos_valid nl
-        LEFT JOIN konversi k
-            ON nl.CAMARU_ID = k.CAMARU_ID
-        GROUP BY nl.tahun
-        ORDER BY nl.tahun
+        -- 3. Gabungkan Basis Data dan Hasil Konversi
+        SELECT 
+            b.tahun,
+            b.total_tidak_lolos,
+            ISNULL(k.total_konversi, 0) AS total_konversi,
+            CASE 
+                WHEN b.total_tidak_lolos > 0 
+                THEN CAST((ISNULL(k.total_konversi, 0) * 100.0 / b.total_tidak_lolos) AS DECIMAL(10,2))
+                ELSE 0 
+            END AS persentase_konversi
+        FROM cte_basis_tidak_lolos b
+        LEFT JOIN cte_total_konversi k ON b.tahun = k.tahun
+        ORDER BY b.tahun DESC
     """)
 
     with engine.connect() as conn:
@@ -112,7 +81,7 @@ def konversi_persentase_per_tahun():
             "tahun": row.tahun,
             "total_tidak_lolos": row.total_tidak_lolos,
             "total_konversi": row.total_konversi,
-            "persentase_konversi": float(row.persentase_konversi)
+            "persentase": f"{row.persentase_konversi}%"
         }
         for row in rows
     ]

@@ -2,117 +2,69 @@
 from fastapi import APIRouter
 from sqlalchemy import text
 from app.core.database import engine
-#from app.core.security import verify_api_key
 
 router = APIRouter(
     prefix="/analytics/camaru-beasiswa",
     tags=["Camaru Beasiswa"]
 )
 
-
-@router.get("/konversi-pindah-prodi")
-def konversi_pindah_prodi():
+@router.get("/konversi-detail")
+def konversi_camaru_beasiswa_detail():
     """
-    Konversi Camaru Beasiswa (FINAL & BENAR):
-
-    - Tidak lolos beasiswa
-    - Diterima lewat jalur lain
-    - ORANG SAMA (fullname + tgl_lahir)
-    - CAMARU_ID BERBEDA
-    - Prodi / Fakultas berubah
-    - Valid pembayaran (TERMIN / LUNAS)
+    Menampilkan detail data mahasiswa (Name, Prodi Asal, Prodi Tujuan)
+    untuk kebutuhan tabel detail di Frontend.
     """
 
     query = text("""
-        /* ===============================
-           1. CAMARU AWAL (DAFTAR BEASISWA)
-        =============================== */
-        WITH base_beasiswa AS (
-            SELECT
-                c.CAMARU_ID AS camaru_awal_id,
-                c.THAJARANID AS tahun,
-                c.FULLNAME,
-                c.tgl_lahir,
-                COALESCE(c.Fakultas_Pilihan_1, 'Tidak diketahui') AS fakultas_awal,
-                COALESCE(c.Prodi_Pilihan_1, 'Tidak diketahui') AS prodi_awal,
-                COALESCE(cb.Jenis_Beasiswa, 'Tidak diketahui') AS jenis_beasiswa
-            FROM Camaru c
-            JOIN Camaru_Beasiswa cb
-                ON c.CAMARU_ID = cb.Camaru_Id
+        WITH cte_tidak_lolos AS (
+            -- 1. Identifikasi mahasiswa yang ada di daftar tidak lolos beasiswa
+            -- Ambil string Nama & Tgl Lahir dari Camaru (c1) sebagai referensi identitas
+            SELECT 
+                tlb.Camaru_Id AS id_lama,
+                c1.FULLNAME,
+                c1.tgl_lahir,
+                c1.THAJARANID,
+                c1.Prodi_Pilihan_1 AS prodi_pilihan_1_awal
+            FROM Camaru_Tidak_Lolos_Beasiswa tlb
+            JOIN Camaru c1 ON tlb.Camaru_Id = c1.CAMARU_ID
         ),
-
-        /* ===============================
-           2. TIDAK LOLOS BEASISWA
-        =============================== */
-        tidak_lolos AS (
-            SELECT cb.*
-            FROM base_beasiswa cb
-            LEFT JOIN ACCEPTED_CANDIDATES ac
-                ON cb.camaru_awal_id = ac.CAMARU_ID
-            WHERE ac.CAMARU_ID IS NULL
-        ),
-
-        /* ===============================
-           3. PEMBAYARAN VALID
-        =============================== */
-        pembayaran_valid AS (
-            SELECT DISTINCT camaru_id
-            FROM resume_pembayaran_all
-            WHERE status_bayar IN ('TERMIN', 'LUNAS')
-        ),
-
-        /* ===============================
-           4. TIDAK LOLOS + SUDAH BAYAR
-        =============================== */
-        tidak_lolos_valid AS (
-            SELECT nl.*
-            FROM tidak_lolos nl
-            JOIN pembayaran_valid pv
-                ON nl.camaru_awal_id = pv.camaru_id
-        ),
-
-        /* ===============================
-           5. DITERIMA JALUR LAIN
-        =============================== */
-        diterima_jalur_lain AS (
-            SELECT
-                c2.CAMARU_ID AS camaru_baru_id,
-                c2.FULLNAME,
-                c2.tgl_lahir,
-                COALESCE(c2.Fakultas_Pilihan_1, 'Tidak diketahui') AS fakultas_akhir,
-                COALESCE(c2.Prodi_Pilihan_1, 'Tidak diketahui') AS prodi_akhir
-            FROM Camaru c2
-            JOIN ACCEPTED_CANDIDATES ac2
-                ON c2.CAMARU_ID = ac2.CAMARU_ID
+        
+        cte_pendaftaran_baru AS (
+            -- 2. Cari kecocokan di Accepted Candidates yang memiliki Nama & Tgl Lahir sama
+            -- tetapi ID pendaftaran berbeda (id_baru)
+            SELECT 
+                tl.id_lama,
+                tl.FULLNAME,
+                tl.THAJARANID AS tahun,
+                c2.CAMARU_ID AS id_baru,
+                tl.prodi_pilihan_1_awal,
+                c2.Prodi_Pilihan_1 AS prodi_pilihan_1_baru,
+                -- Logika Pindah Prodi: Jika pilihan 1 di pendaftaran baru berbeda dengan pilihan 1 awal
+                CASE 
+                    WHEN tl.prodi_pilihan_1_awal <> c2.Prodi_Pilihan_1 THEN 'Pindah Prodi'
+                    ELSE 'Tetap' 
+                END AS status_prodi
+            FROM cte_tidak_lolos tl
+            INNER JOIN ACCEPTED_CANDIDATES ac ON ac.CAMARU_ID <> tl.id_lama
+            INNER JOIN Camaru c2 ON ac.CAMARU_ID = c2.CAMARU_ID
+            WHERE 
+                c2.FULLNAME = tl.FULLNAME 
+                AND c2.tgl_lahir = tl.tgl_lahir
+                AND c2.JNS_DAFTAR <> 'BEASW' -- Filter agar hanya mencari pendaftaran reguler/non-beasiswa
         )
 
-        /* ===============================
-           6. KONVERSI PINDAH PRODI
-        =============================== */
-        SELECT
-            nl.tahun,
-            nl.jenis_beasiswa,
-            nl.fakultas_awal,
-            nl.prodi_awal,
-            dl.fakultas_akhir,
-            dl.prodi_akhir,
-            COUNT(DISTINCT nl.camaru_awal_id) AS total_konversi
-        FROM tidak_lolos_valid nl
-        JOIN diterima_jalur_lain dl
-            ON nl.FULLNAME = dl.FULLNAME
-           AND nl.tgl_lahir = dl.tgl_lahir
-           AND nl.camaru_awal_id <> dl.camaru_baru_id
-        WHERE
-            nl.prodi_awal <> dl.prodi_akhir
-            OR nl.fakultas_awal <> dl.fakultas_akhir
-        GROUP BY
-            nl.tahun,
-            nl.jenis_beasiswa,
-            nl.fakultas_awal,
-            nl.prodi_awal,
-            dl.fakultas_akhir,
-            dl.prodi_akhir
-        ORDER BY total_konversi DESC
+        -- 3. Final Join untuk memastikan pembayaran valid dan data sudah final di tabel Mahasiswa
+        SELECT 
+            pb.tahun,
+            pb.FULLNAME,
+            pb.prodi_pilihan_1_awal AS prodi_asal,
+            pb.prodi_pilihan_1_baru AS prodi_tujuan,
+            pb.status_prodi
+        FROM cte_pendaftaran_baru pb
+        INNER JOIN resume_pembayaran_all rp ON pb.id_baru = rp.camaru_id
+        INNER JOIN Mahasiswa m ON pb.id_baru = m.Camaru_Id
+        WHERE rp.status_bayar IN ('LP', 'LUNAS')
+        ORDER BY pb.tahun DESC, pb.FULLNAME ASC
     """)
 
     with engine.connect() as conn:
@@ -121,12 +73,10 @@ def konversi_pindah_prodi():
     return [
         {
             "tahun": row.tahun,
-            "jenis_beasiswa": row.jenis_beasiswa,
-            "fakultas_awal": row.fakultas_awal,
-            "prodi_awal": row.prodi_awal,
-            "fakultas_akhir": row.fakultas_akhir,
-            "prodi_akhir": row.prodi_akhir,
-            "total_konversi": row.total_konversi
+            "nama": row.FULLNAME,
+            "prodi_asal": row.prodi_asal,
+            "prodi_tujuan": row.prodi_tujuan,
+            "status_prodi": row.status_prodi
         }
         for row in rows
     ]

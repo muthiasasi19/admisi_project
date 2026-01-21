@@ -1,4 +1,4 @@
-//componets/ParentProbabilityByProfesi.jsx
+// components/ParentProbabilityByProfesi.jsx
 
 import { useEffect, useState } from "react";
 import {
@@ -7,16 +7,15 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   CartesianGrid,
-  Cell
+  Cell,
+  Label
 } from "recharts";
 import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000/analytics/profesi-probability/registrasi-by-profesi-per-tahun";
 
-// Palet warna kontras tinggi (Vibrant Violet & Deep Purple)
 const BAR_COLORS = ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa"];
 
 export default function ParentProbabilityByProfesi() {
@@ -30,8 +29,12 @@ export default function ParentProbabilityByProfesi() {
     async function fetchData() {
       try {
         const res = await axios.get(API_URL);
-        const raw = res.data;
-        if (!raw.length) return;
+        const raw = res.data.filter((item) => Number(item.tahun) !== 2016);
+        
+        if (!raw.length) {
+          setLoading(false);
+          return;
+        }
 
         const years = [...new Set(raw.map((item) => Number(item.tahun)))].sort((a, b) => b - a);
         const defaultYear = years[0];
@@ -71,7 +74,6 @@ export default function ParentProbabilityByProfesi() {
 
   return (
     <div style={{ width: "100%" }}>
-      {/* ===== HEADER & FILTER ===== */}
       <div style={{
         display: "flex",
         justifyContent: "space-between",
@@ -81,16 +83,16 @@ export default function ParentProbabilityByProfesi() {
         borderBottom: "2px solid #e2e8f0"
       }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>
-            Probabilitas Registrasi vs Profesi
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+            Probabilitas Registrasi - Profesi
           </h2>
-          <p style={{ fontSize: 14, color: "#475569", margin: "4px 0 0 0" }}>
-            Persentase peluang registrasi berdasarkan latar belakang pekerjaan orang tua
+          <p style={{ fontSize: 15, color: "#475569", margin: "4px 0 0 0" }}>
+            <span style={{ fontSize: "20px" }}>💡</span> Probabilitas registrasi dihitung pada camaru yang mengisi data profesi orang tua.
           </p>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>
             Tahun Ajaran
           </label>
           <select
@@ -101,7 +103,7 @@ export default function ParentProbabilityByProfesi() {
               borderRadius: 8,
               border: "1px solid #cbd5e1",
               background: "#fff",
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: 700,
               color: "#1e293b",
               cursor: "pointer"
@@ -114,7 +116,6 @@ export default function ParentProbabilityByProfesi() {
         </div>
       </div>
 
-      {/* ===== CHART AREA ===== */}
       <div style={{ 
         background: "#ffffff", 
         borderRadius: 12, 
@@ -122,77 +123,67 @@ export default function ParentProbabilityByProfesi() {
         border: "1px solid #e2e8f0",
         boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
       }}>
-        <ResponsiveContainer width="100%" height={450}>
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ top: 5, right: 50, left: 60, bottom: 5 }}
+        <ResponsiveContainer width="100%" height={400}> 
+        <BarChart
+          data={data}
+          layout="vertical"
+          // PERBAIKAN 1: Margin left ditingkatkan agar label sumbu Y punya ruang
+          margin={{ top: 20, right: 30, left: 40, bottom: 60 }}
+          barCategoryGap="10%" 
+        >
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
+
+          <XAxis
+            type="number"
+            domain={[0, 100]}
+            tickFormatter={(v) => `${v}%`}
+            axisLine={{ stroke: '#475569', strokeWidth: 2 }}
+            tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 700 }}
           >
-            {/* Grid Vertikal Saja */}
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
-
-            <XAxis
-              type="number"
-              domain={[0, 100]}
-              tickFormatter={(v) => `${v}%`}
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis tegas
-              tick={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }}
+            <Label 
+              value="Persentase" 
+              offset={-45} 
+              position="insideBottom" 
+              style={{ fontSize: 18, fill: '#64748b' }} 
             />
+          </XAxis>
 
-            <YAxis
-              type="category"
-              dataKey="profesi"
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis tegas
-              tick={{ fill: '#0f172a', fontSize: 12, fontWeight: 700 }}
-              width={180} // Lebar cukup untuk teks profesi yang panjang
+          <YAxis
+            type="category"
+            dataKey="profesi"
+            axisLine={{ stroke: '#475569', strokeWidth: 2 }}
+            tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 700 }}
+            // PERBAIKAN 2: Width ditingkatkan agar label "Jumlah" tidak terpotong ke kiri
+            width={120}
+          >
+            <Label 
+              value="Kategori" 
+              angle={-90} 
+              position="insideLeft" 
+              // PERBAIKAN 3: Offset disesuaikan agar teks berada di posisi yang tepat
+              offset={-10} 
+              style={{ fontSize: 18, fill: '#64748b' }} 
             />
+          </YAxis>
 
-            <Tooltip
-              cursor={{ fill: '#f1f5f9' }}
-              contentStyle={{ 
-                borderRadius: '8px', 
-                border: '1px solid #cbd5e1', 
-                fontWeight: 700,
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' 
-              }}
-              formatter={(value) => [`${value}%`, "Peluang Registrasi"]}
-            />
+          <Tooltip
+            cursor={{ fill: '#f1f5f9' }}
+            contentStyle={{ borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 700 }}
+            formatter={(value) => [`${value}%`, "Peluang Registrasi"]}
+          />
 
-            <Legend 
-              verticalAlign="top" 
-              align="right" 
-              wrapperStyle={{ paddingBottom: 20, fontWeight: 700, fontSize: "13px" }} 
-            />
-
-            <Bar
-              dataKey="probabilitas"
-              name="Probabilitas Registrasi (%)"
-              radius={[0, 4, 4, 0]}
-              barSize={30}
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* ===== FOOTER INFO ===== */}
-      <div style={{ 
-        marginTop: 20, 
-        padding: "16px", 
-        background: "#f5f3ff", 
-        borderRadius: "8px",
-        border: "1px solid #ddd6fe",
-        display: "flex",
-        alignItems: "center",
-        gap: "12px"
-      }}>
-        <span style={{ fontSize: "20px" }}>🔍</span>
-        <div style={{ fontSize: "14px", color: "#5b21b6", fontWeight: 600 }}>
-          Data ini membantu mengidentifikasi profesi orang tua mana yang memiliki loyalitas registrasi paling tinggi di setiap tahunnya.
-        </div>
+          <Bar
+            dataKey="probabilitas"
+            name="" 
+            radius={[0, 4, 4, 0]}
+            barSize={40} 
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
       </div>
     </div>
   );

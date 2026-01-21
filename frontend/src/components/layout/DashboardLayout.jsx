@@ -30,7 +30,8 @@ export default function DashboardLayout() {
           marginBottom: 40,
 
           /* 🔥 KUNCI PERBAIKAN */
-          paddingLeft: sidebarWidth + 24,
+        marginLeft: sidebarWidth, // Main container bergeser sejauh lebar sidebar
+          paddingLeft: 24,          // Padding kiri dan kanan sekarang SAMA
           paddingRight: 24,
           paddingTop: 24,
           paddingBottom: 24,

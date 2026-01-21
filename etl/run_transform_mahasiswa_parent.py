@@ -1,4 +1,3 @@
-# etl/run_transform_mahasiswa_parent.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -26,8 +25,6 @@ from transform.parent.mahasiswa_parent.apply_province import apply_province_maha
 
 from transform.income.impute_from_ump import impute_income_from_ump
 
-
-
 # =========================
 # LOAD DATA FROM SQL SERVER
 # =========================
@@ -52,6 +49,7 @@ df_parent = drop_wali(df_parent)
 # =========================
 # 3. IMPUTASI PROVINSI
 # =========================
+# Fungsi ini menghasilkan kolom 'provinsi_final'
 df_parent = apply_province_mahasiswa_parent(
     df_parent=df_parent,
     df_ref_location=df_ref
@@ -60,10 +58,11 @@ df_parent = apply_province_mahasiswa_parent(
 # =========================
 # 4. IMPUTASI INCOME INDIVIDUAL (UMP)
 # =========================
+# Di sini 'provinsi_final' digunakan untuk mencari nilai UMP
 df_parent = impute_income_from_ump(
     df=df_parent,
     ump_df=df_ump,
-    province_col="provinsi_final",   # ✅ BENAR
+    province_col="provinsi_final", 
     income_col="Income",
     year_col="Angkatan"
 )
@@ -71,39 +70,43 @@ df_parent = impute_income_from_ump(
 # =========================
 # 5. AGREGASI FAMILY
 # =========================
+# Agar kolom lokasi tidak hilang, kita simpan mapping NIM -> Provinsi sebelum agregasi
+df_location_map = df_parent[['Nim', 'provinsi_final']].drop_duplicates(subset=['Nim'])
+
 df_final = apply_parent_aggregation(df_parent)
+
+# Join kembali kolom lokasi ke hasil agregasi
+df_final = df_final.merge(df_location_map, on='Nim', how='left')
 
 # =========================
 # 6. MAPPING PROFESI (FINAL)
 # =========================
 df_final = map_profession_mahasiswa(df_final)
 
+print("FINAL rows:", len(df_final))
+print("Unique Mahasiswa (NIM):", df_final["Nim"].nunique())
+
+
+# =========================
+# SANITY CHECK
+# =========================
 print("\n=== SANITY CHECK : MAHASISWA_PARENT ===")
 
-# 1. 1 mahasiswa = 1 baris
-print("Duplicate NIM:",
-      df_final["Nim"].duplicated().sum())
+print("Duplicate NIM:", df_final["Nim"].duplicated().sum())
+print("Contains wali column:", "Parent_Type_Id" in df_final.columns)
+print("Income dtype:", df_final["total_income"].dtype)
 
-# 2. Wali tidak ikut
-print("Contains wali:",
-      "Parent_Type_Id" in df_final.columns)
+# Cek apakah kolom provinsi_final ada
+print("Column 'provinsi_final' exists:", "provinsi_final" in df_final.columns)
 
-# 3. Income harus numerik
-print("Income dtype:",
-      df_final["total_income"].dtype)
+invalid_zero = df_final.query(
+    "total_income == 0 and Profesi not in ['tidak bekerja', 'tidak terdaftar', 'pensiun', 'ibu rumah tangga']"
+)
+print("Invalid zero income rows:", len(invalid_zero))
 
-# 4. Income NULL / 0
-print("Income NULL count:",
-      df_final["total_income"].isna().sum())
+if "is_imputed_income" in df_final.columns:
+    print("Imputed income ratio:", f"{df_final['is_imputed_income'].mean() * 100:.2f}%")
 
-print("Income = 0 count:",
-      (df_final["total_income"] == 0).sum())
-
-# 5. Profesi NULL (boleh)
-print("\nProfesi NULL count:",
-      df_final["Profesi"].isna().sum())
-
-# 6. Profesi distribution
 print("\nProfesi distribution:")
 print(df_final["Profesi"].value_counts(dropna=False))
 
@@ -111,13 +114,13 @@ print(df_final["Profesi"].value_counts(dropna=False))
 # SAMPLE OUTPUT
 # =========================
 print("\n=== SAMPLE DATA ===")
-print(df_final.sample(5))
+print(df_final.sample(min(5, len(df_final))))
 
 # =========================
 # 7. LOAD TO DATABASE
 # =========================
 from utils.db_writer import write_fact_table
 
-print("Writing analytics.fact_mahasiswa_family...")
+print("\nWriting analytics.fact_mahasiswa_family...")
 write_fact_table(df_final, "fact_mahasiswa_family")
 print("✅ fact_mahasiswa_family written")

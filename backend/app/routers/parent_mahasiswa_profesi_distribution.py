@@ -8,24 +8,24 @@ router = APIRouter(
     tags=["Parent Distribution"]
 )
 
-@router.get("/profesi-camaru")
-def distribusi_profesi_camaru():
+@router.get("/profesi-mahasiswa")
+def distribusi_profesi_mahasiswa():
     """
-    Distribusi profesi orang tua CAMARU per tahun ajaran.
+    Distribusi profesi orang tua mahasiswa per tahun ajaran.
     (Setara Google Colab)
     """
 
     query = text("""
         SELECT
-            THAJARANID AS tahun,
+            Angkatan AS tahun,
             COALESCE(Profesi, 'Tidak Diketahui') AS profesi,
             COUNT(*) AS jumlah
-        FROM analytics.fact_camaru_family
+        FROM analytics.fact_mahasiswa_family
         GROUP BY
-            THAJARANID,
+            Angkatan,
             COALESCE(Profesi, 'Tidak Diketahui')
         ORDER BY
-            THAJARANID;
+            Angkatan;
     """)
 
     with engine.connect() as conn:

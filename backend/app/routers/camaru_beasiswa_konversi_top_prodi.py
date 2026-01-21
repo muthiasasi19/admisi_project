@@ -1,79 +1,70 @@
-# routers/camaru_beasiswa_konversi_top_prodi.py
 from fastapi import APIRouter
 from sqlalchemy import text
 from app.core.database import engine
-#from app.core.security import verify_api_key
 
 router = APIRouter(
     prefix="/analytics/camaru-beasiswa",
     tags=["Camaru Beasiswa"]
 )
 
-@router.get("/konversi-top-prodi")
-def top_prodi_tujuan_konversi():
+@router.get("/top-pindah-prodi")
+def top_pindah_prodi():
     """
-    Top Prodi Tujuan Konversi Camaru Beasiswa
-
-    Definisi:
-    - Tidak lolos beasiswa
-    - Valid pembayaran (TERMIN / LUNAS)
-    - Diterima lewat jalur lain
-    - Hitung PRODI TUJUAN AKHIR (Pilihan 1)
+    Menampilkan daftar prodi tujuan yang paling banyak dipilih 
+    per tahun ajaran oleh mahasiswa yang memutuskan untuk pindah prodi.
     """
-
     query = text("""
-        ======================================================
-        create tabel konversi beasiswa
-        ====================================================== 
-        WITH base_accepted AS (
-            SELECT
-                ac.CAMARU_ID,
-                ac.THAJARANID,
-                c.FULLNAME,
-                c.tgl_lahir,
-                c.Fakultas_Pilihan_1,
-                c.Prodi_Pilihan_1
-            FROM ACCEPTED_CANDIDATES ac
-            INNER JOIN Camaru c
-                ON ac.CAMARU_ID = c.CAMARU_ID
-            WHERE ac.THAJARANID BETWEEN 2020 AND 2025
+        WITH cte_tidak_lolos AS (
+            -- Ambil data awal dan sertakan THAJARANID sebagai filter tahun
+            SELECT 
+                tlb.Camaru_Id AS id_lama,
+                c1.FULLNAME,
+                c1.tgl_lahir,
+                c1.THAJARANID AS tahun,
+                c1.Prodi_Pilihan_1 AS prodi_pilihan_1_awal
+            FROM Camaru_Tidak_Lolos_Beasiswa tlb
+            JOIN Camaru c1 ON tlb.Camaru_Id = c1.CAMARU_ID
+        ),
+        
+        cte_pendaftaran_baru AS (
+            -- Cari kecocokan identitas di pendaftaran baru (Non-Beasiswa)
+            SELECT 
+                tl.id_lama,
+                tl.tahun,
+                c2.CAMARU_ID AS id_baru,
+                c2.Prodi_Pilihan_1 AS prodi_tujuan
+            FROM cte_tidak_lolos tl
+            INNER JOIN ACCEPTED_CANDIDATES ac ON ac.CAMARU_ID <> tl.id_lama
+            INNER JOIN Camaru c2 ON ac.CAMARU_ID = c2.CAMARU_ID
+            WHERE 
+                c2.FULLNAME = tl.FULLNAME 
+                AND c2.tgl_lahir = tl.tgl_lahir
+                AND c2.JNS_DAFTAR <> 'BEASW'
+                AND c2.Prodi_Pilihan_1 <> tl.prodi_pilihan_1_awal -- Logika Pindah Prodi
         )
-        SELECT
-            tl.camaru_id_bea,
-            ba.CAMARU_ID AS camaru_id_nonbea,
-            tl.FULLNAME,
-            tl.tgl_lahir,
-            tl.THAJARANID,
 
-            /* Data saat daftar beasiswa */
-            tl.Jenis_Beasiswa,
-            tl.fakultas_bea,
-            tl.prodi_bea,
-
-            /* Data saat diterima jalur lain */
-            ba.Fakultas_Pilihan_1 AS fakultas_nonbea,
-            ba.Prodi_Pilihan_1 AS prodi_nonbea,
-
-            CASE
-                WHEN tl.prodi_bea = ba.Prodi_Pilihan_1
-                    THEN 'Tidak Pindah Prodi'
-                ELSE 'Pindah Prodi'
-            END AS status_pindah_prodi
-        INTO tbl_konversi_beasiswa
-        FROM tbl_tidak_lolos_beasiswa tl
-        INNER JOIN base_accepted ba
-            ON tl.FULLNAME = ba.FULLNAME
-        AND tl.tgl_lahir = ba.tgl_lahir;
+        -- Gabungkan dengan data pembayaran dan status mahasiswa final
+        SELECT 
+            pb.tahun,
+            pb.prodi_tujuan,
+            COUNT(*) AS jumlah_mahasiswa
+        FROM cte_pendaftaran_baru pb
+        INNER JOIN resume_pembayaran_all rp ON pb.id_baru = rp.camaru_id
+        INNER JOIN Mahasiswa m ON pb.id_baru = m.Camaru_Id
+        WHERE rp.status_bayar IN ('LP', 'LUNAS')
+        GROUP BY pb.tahun, pb.prodi_tujuan
+        ORDER BY pb.tahun DESC, jumlah_mahasiswa DESC
     """)
 
     with engine.connect() as conn:
         rows = conn.execute(query).fetchall()
 
+    # Pastikan data tahun dikonversi ke string/integer agar FE mudah memproses
     return [
         {
-            "tahun": row.tahun,
+            "tahun": str(row.tahun),
             "prodi_tujuan": row.prodi_tujuan,
-            "total_konversi": row.total_konversi
+            "jumlah": row.jumlah_mahasiswa
         }
         for row in rows
     ]

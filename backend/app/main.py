@@ -10,10 +10,12 @@ from app.routers import camaru_beasiswa_status
 from app.routers import camaru_beasiswa_konversi
 from app.routers import camaru_beasiswa_konversi_persentase
 from app.routers import camaru_beasiswa_konversi_top_prodi
-from app.routers import parent_probability
+from app.routers import income_probability
 from app.routers import profesi_probability
-from app.routers import parent_distribution
-from app.routers import parent_mahasiswa_distribution
+from app.routers import parent_camaru_income_distribution
+from app.routers import parent_camaru_profesi_distribution
+from app.routers import parent_mahasiswa_income_distribution
+from app.routers import parent_mahasiswa_profesi_distribution
 
 
 app = FastAPI(
@@ -39,8 +41,10 @@ app.include_router(camaru_beasiswa_status.router)
 app.include_router(camaru_beasiswa_konversi.router)
 app.include_router(camaru_beasiswa_konversi_persentase.router)
 app.include_router(camaru_beasiswa_konversi_top_prodi.router)
-app.include_router(parent_probability.router)
+app.include_router(income_probability.router)
 app.include_router(profesi_probability.router)
-app.include_router(parent_distribution.router)
-app.include_router(parent_mahasiswa_distribution.router)
+app.include_router(parent_camaru_income_distribution.router)
+app.include_router(parent_camaru_profesi_distribution.router)
+app.include_router(parent_mahasiswa_income_distribution.router)
+app.include_router(parent_mahasiswa_profesi_distribution.router)
 

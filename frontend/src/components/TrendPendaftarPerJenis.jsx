@@ -1,3 +1,4 @@
+// frontend/src/components/Trend_pendaftar_per_jenis.jsx
 import { useEffect, useState } from "react";
 import {
   BarChart,
@@ -7,61 +8,43 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid,
+  Label
 } from "recharts";
 import axios from "axios";
 
-// Palet warna Kontras Tinggi (High Contrast Solid Colors)
 const CONTRAST_COLORS = [
-  "#003f5c", // Dark Blue
-  "#de425b", // Red
-  "#00a65a", // Green
-  "#f39c12", // Orange
-  "#8e44ad", // Purple
-  "#2c3e50", // Midnight Blue
-  "#d35400", // Pumpkin
-  "#16a085", // Teal
-  "#c0392b", // Strong Red
-  "#2980b9", // Bright Blue
-  "#27ae60", // Bright Green
-  "#f1c40f"  // Yellow
+  "#003f5c", "#de425b", "#00a65a", "#f39c12", "#8e44ad", 
+  "#2c3e50", "#d35400", "#16a085", "#c0392b", "#2980b9", 
+  "#27ae60", "#f1c40f"
 ];
 
-export default function TrendPendaftarPerJenis({ showTable = false }) {
+export default function TrendPendaftarPerJenis({ showTable = false, isDashboard = false }) {
   const [data, setData] = useState([]);
   const [jenisList, setJenisList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedYear, setSelectedYear] = useState("all");
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await axios.get(
-          "http://127.0.0.1:8000/analytics/camaru-beasiswa/trend-per-jenis"
-        );
-
+        const res = await axios.get("http://127.0.0.1:8000/analytics/camaru-beasiswa/trend-per-jenis");
         const raw = res.data;
         const grouped = {};
         const jenisSet = new Set();
 
         raw.forEach((item) => {
           const tahun = item.tahun;
-          const key = item.jenis_beasiswa
-            .replace(/\s+/g, "_")
-            .replace(/[^\w]/g, "");
-
+          const key = item.jenis_beasiswa.replace(/\s+/g, "_").replace(/[^\w]/g, "");
           jenisSet.add(key);
-
           if (!grouped[tahun]) grouped[tahun] = { tahun };
           grouped[tahun][key] = item.total_pendaftar;
         });
 
         const jenisArray = Array.from(jenisSet);
-
         const finalData = Object.values(grouped)
           .map((row) => {
-            jenisArray.forEach((j) => {
-              if (row[j] === undefined) row[j] = 0;
-            });
+            jenisArray.forEach((j) => { if (row[j] === undefined) row[j] = 0; });
             return row;
           })
           .sort((a, b) => a.tahun - b.tahun);
@@ -70,158 +53,165 @@ export default function TrendPendaftarPerJenis({ showTable = false }) {
         setData(finalData);
         setLoading(false);
       } catch (err) {
-        console.error("Error fetch trend per jenis:", err);
+        console.error("Error fetch:", err);
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
-  if (loading) return <div style={{ padding: 24, color: "#64748b" }}>Memuat data trend...</div>;
+  const calculateTotal = () => {
+    if (selectedYear === "all") {
+      return data.reduce((acc, row) => {
+        return acc + jenisList.reduce((sum, jenis) => sum + (row[jenis] || 0), 0);
+      }, 0);
+    } else {
+      const yearData = data.find(d => String(d.tahun) === String(selectedYear));
+      if (!yearData) return 0;
+      return jenisList.reduce((sum, jenis) => sum + (yearData[jenis] || 0), 0);
+    }
+  };
+
+  if (loading) return <div style={{ padding: 24, color: "#64748b", fontSize: "16px" }}>Memuat data trend...</div>;
+
+  const enhancedCardStyle = {
+    background: "linear-gradient(135deg, #064e3b 0%, #065f46 100%)",
+    padding: "20px 24px",
+    borderRadius: "12px",
+    color: "white",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minWidth: "320px",
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+  };
 
   return (
     <div style={{ width: "100%" }}>
-      {/* ===== HEADER SECTION ===== */}
-      <div style={{
-        marginBottom: 24,
-        paddingBottom: 16,
-        borderBottom: "2px solid #e2e8f0"
+      {/* HEADER SECTION */}
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        marginBottom: 24, 
+        paddingBottom: 16, 
+        borderBottom: "2px solid #e2e8f0" 
       }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>
-          Trend Pendaftar per Tahun & Jenis Beasiswa
-        </h2>
-        <p style={{ fontSize: 14, color: "#475569", margin: "4px 0 0 0" }}>
-          Visualisasi jumlah pendaftaran berdasarkan kategori beasiswa
-        </p>
+        <div>
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+            Trend Pendaftar per Tahun berdasarkan Jenis Beasiswa
+          </h2>
+          <p style={{ fontSize: 16, color: "#475569", margin: "6px 0 0 0" }}>
+            Visualisasi jumlah pendaftar beasiswa secara keseluruhan
+          </p>
+        </div>
+
+        {!isDashboard && (
+          <div style={enhancedCardStyle}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", opacity: 0.9 }}>
+                  Total Pendaftar
+                </span>
+                <select 
+                  value={selectedYear} 
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  style={{ 
+                    background: "rgba(255,255,255,0.2)", 
+                    color: "white", 
+                    border: "none", 
+                    fontSize: "12px", 
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    outline: "none",
+                    padding: "2px 4px"
+                  }}
+                >
+                  <option value="all" style={{color: "black"}}>Semua Tahun</option>
+                  {data.map(d => (
+                    <option key={d.tahun} value={d.tahun} style={{color: "black"}}>{d.tahun}</option>
+                  ))}
+                </select>
+              </div>
+              <span style={{ fontSize: "32px", fontWeight: 900 }}>
+                {calculateTotal().toLocaleString("id-ID")}
+              </span>
+            </div>
+            <div style={{ background: "rgba(255, 255, 255, 0.2)", padding: "12px", borderRadius: "50%" }}>
+              <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ===== CHART SECTION ===== */}
+      {/* GRAFIK SECTION */}
       <div style={{ 
         background: "#ffffff", 
         borderRadius: 12, 
-        padding: "24px", 
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+        padding: isDashboard ? "0px" : "32px", 
+        border: isDashboard ? "none" : "1px solid #e2e8f0", 
+        boxShadow: isDashboard ? "none" : "0 4px 6px -1px rgba(0,0,0,0.1)" 
       }}>
-        <ResponsiveContainer width="100%" height={500}>
-          <BarChart
-            data={data}
-            // Margin right besar (280) agar Legend yang panjang tidak menabrak grafik
-            margin={{ top: 10, right: 280, left: 10, bottom: 20 }}
-          >
+        <ResponsiveContainer width="100%" height={isDashboard ? 450 : 550}>
+          <BarChart data={data} margin={{ top: 10, right: 50, left: 20, bottom: 50 }} barCategoryGap="12%" barGap={0}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-            
             <XAxis 
               dataKey="tahun" 
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis tegas
-              tickLine={{ stroke: '#475569' }}
-              tick={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }}
+              axisLine={{ stroke: '#475569', strokeWidth: 2 }} 
+              tickLine={{ stroke: '#475569' }} 
+              tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 700 }} 
               dy={10}
-            />
-            
+            >
+              <Label 
+                value="Tahun" 
+                position="insideBottom" 
+                offset={-35} 
+                style={{ textAnchor: 'middle', fill: '#475569', fontSize: 18 }} 
+              />
+            </XAxis>
             <YAxis 
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis tegas
-              tickLine={{ stroke: '#475569' }}
-              tick={{ fill: '#0f172a', fontSize: 13, fontWeight: 600 }}
-            />
-            
+              axisLine={{ stroke: '#475569', strokeWidth: 2 }} 
+              tickLine={{ stroke: '#475569' }} 
+              tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 600 }}
+            >
+              <Label 
+                value="Jumlah Mahasiswa" 
+                angle={-90} 
+                position="insideLeft" 
+                offset={-10} 
+                style={{ textAnchor: 'middle', fill: '#475569', fontSize: 18 }} 
+              />
+            </YAxis>
             <Tooltip 
-              cursor={{ fill: '#f1f5f9' }}
-              contentStyle={{ 
-                borderRadius: '8px', 
-                border: '1px solid #cbd5e1', 
-                fontWeight: 600,
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' 
-              }}
+              shared={false} 
+              cursor={{ fill: 'rgba(0,0,0,0.03)' }} 
+              contentStyle={{ borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600, fontSize: "14px" }} 
             />
-            
-            <Legend
-              layout="vertical"
-              align="right"
-              verticalAlign="middle"
-              iconType="rect" // Ikon kotak agar lebih tegas
-              wrapperStyle={{ 
-                paddingLeft: "50px", // Jarak dari grafik
-                fontSize: "13px",    // Ukuran tulisan diperbesar
-                fontWeight: 600,
-                color: "#1e293b",
-                lineHeight: "26px"   // Jarak antar item legend
-              }}
+            <Legend 
+              layout="vertical" 
+              align="right" 
+              verticalAlign="middle" 
+              iconType="rect" 
+              wrapperStyle={{ paddingLeft: "50px", fontSize: "14px", fontWeight: 700, color: "#1e293b", lineHeight: "30px" }} 
             />
-
             {jenisList.map((jenis, index) => (
-              <Bar
-                key={jenis}
-                dataKey={jenis}
-                name={jenis.replace(/_/g, " ")} // Nama bersih di Legend
-                fill={CONTRAST_COLORS[index % CONTRAST_COLORS.length]}
-                radius={[2, 2, 0, 0]} // Sedikit membulat di ujung atas
+              <Bar 
+                key={jenis} 
+                dataKey={jenis} 
+                name={jenis.replace(/_/g, " ")} 
+                fill={CONTRAST_COLORS[index % CONTRAST_COLORS.length]} 
+                radius={[4, 4, 0, 0]} 
+                activeBar={{ stroke: '#000', strokeWidth: 2, fillOpacity: 0.9 }} 
               />
             ))}
           </BarChart>
         </ResponsiveContainer>
       </div>
-
-      {/* ===== TABLE SECTION ===== */}
-      {showTable && (
-        <div style={{ marginTop: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 6, height: 20, background: "#0f172a", borderRadius: 2 }}></div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: 0 }}>
-              Detail Data Pendaftar
-            </h3>
-          </div>
-
-          <div style={{ overflowX: "auto", borderRadius: 8, border: "2px solid #e2e8f0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-              <thead>
-                <tr style={{ backgroundColor: "#1e293b" }}>
-                  <th style={{ ...th, color: "#ffffff", textAlign: "left" }}>Kategori Beasiswa</th>
-                  {data.map((row) => (
-                    <th key={row.tahun} style={{ ...th, color: "#ffffff" }}>
-                      {row.tahun}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {jenisList.map((jenis, idx) => (
-                  <tr key={jenis} style={{ 
-                    backgroundColor: idx % 2 === 0 ? "#ffffff" : "#f8fafc",
-                    borderBottom: "1px solid #e2e8f0"
-                  }}>
-                    <td style={{ ...td, textAlign: "left", fontWeight: 700, color: "#0f172a" }}>
-                      {jenis.replace(/_/g, " ")}
-                    </td>
-                    {data.map((row) => (
-                      <td key={row.tahun} style={{ ...td, fontWeight: 500 }}>
-                        {row[jenis]?.toLocaleString() ?? 0}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-/* ================= STYLE HELPERS ================= */
-
-const th = {
-  padding: "14px 20px",
-  fontWeight: 700,
-  fontSize: "12px",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em"
-};
-
-const td = {
-  padding: "14px 20px",
-  color: "#334155",
-  textAlign: "center"
-};

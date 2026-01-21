@@ -1,15 +1,13 @@
-import DistribusiIncomeOrtu from "../components/DistribusiIncomeOrtu";
-import DistribusiProfesiOrtu from "../components/DistribusiProfesiOrtu";
+//frontend/src/pages/ParentProbability.jsx
 import ParentProbabilityByIncome from "../components/ParentProbabilityByIncome";
 import ParentProbabilityByProfesi from "../components/ParentProbabilityByProfesi";
 
 export default function ParentPage() {
   return (
-    <>
-      <DistribusiIncomeOrtu />
-      <DistribusiProfesiOrtu />
+    <div style={{ display: "flex", flexDirection: "column", gap: "40px" }}>
       <ParentProbabilityByIncome />
       <ParentProbabilityByProfesi />
-    </>
+    </div>
   );
 }
+

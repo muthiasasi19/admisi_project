@@ -7,7 +7,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid,
+  Label
 } from "recharts";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -25,7 +26,6 @@ export default function TrendLolosPerTahun() {
           grouped[item.tahun] += item.total_lolos;
         });
 
-        // Pastikan data terurut berdasarkan tahun agar garis tidak berantakan
         const formatted = Object.keys(grouped)
           .map(tahun => ({
             tahun,
@@ -42,7 +42,7 @@ export default function TrendLolosPerTahun() {
       });
   }, []);
 
-  if (loading) return <div style={{ padding: 24, color: "#64748b" }}>Memuat tren kelulusan...</div>;
+  if (loading) return <div style={{ padding: 24, color: "#64748b", fontSize: "16px" }}>Memuat tren kelulusan...</div>;
 
   return (
     <div style={{ width: "100%" }}>
@@ -52,10 +52,12 @@ export default function TrendLolosPerTahun() {
         paddingBottom: 16,
         borderBottom: "2px solid #e2e8f0"
       }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+        {/* Ukuran font judul ditingkatkan ke 24px */}
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", margin: 0 }}>
           Trend Lolos Tahunan
         </h2>
-        <p style={{ fontSize: 14, color: "#475569", margin: "4px 0 0 0" }}>
+        {/* Ukuran font sub-judul ditingkatkan ke 16px */}
+        <p style={{ fontSize: 16, color: "#475569", margin: "6px 0 0 0" }}>
           Statistik pertumbuhan total penerima beasiswa per periode
         </p>
       </div>
@@ -64,34 +66,53 @@ export default function TrendLolosPerTahun() {
       <div style={{ 
         background: "#ffffff", 
         borderRadius: 12, 
-        padding: "24px", 
+        padding: "32px", // Padding kontainer ditingkatkan
         border: "1px solid #e2e8f0",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+        boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)"
       }}>
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-            {/* Grid horizontal tegas */}
+        <ResponsiveContainer width="100%" height={450}> {/* Tinggi chart ditingkatkan */}
+          {/* Margin disesuaikan untuk menampung label yang lebih besar */}
+          <LineChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
             
             <XAxis 
               dataKey="tahun" 
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis sumbu tegas
+              axisLine={{ stroke: '#475569', strokeWidth: 2 }}
               tickLine={{ stroke: '#475569' }}
-              tick={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }}
+              // Font tick sumbu X ditingkatkan ke 14px
+              tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 700 }}
               dy={10}
-            />
+            >
+              <Label 
+                value="Tahun" 
+                offset={-25} 
+                position="insideBottom" 
+                // Font label sumbu X ditingkatkan ke 17px
+                style={{ fill: '#475569', fontSize: 17 }} 
+              />
+            </XAxis>
             
             <YAxis 
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis sumbu tegas
+              axisLine={{ stroke: '#475569', strokeWidth: 2 }}
               tickLine={{ stroke: '#475569' }}
-              tick={{ fill: '#0f172a', fontSize: 13, fontWeight: 600 }}
-            />
+              // Font tick sumbu Y ditingkatkan ke 14px
+              tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 600 }}
+            >
+              <Label 
+                value="Jumlah Mahasiswa" 
+                angle={-90} 
+                position="insideLeft" 
+                // Font label sumbu Y ditingkatkan ke 17px
+                style={{ textAnchor: 'middle', fill: '#475569', fontSize: 17}} 
+              />
+            </YAxis>
             
             <Tooltip 
               contentStyle={{ 
                 borderRadius: '10px', 
                 border: '1px solid #cbd5e1', 
                 boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                fontSize: '15px', // Font tooltip ditingkatkan
                 fontWeight: 700
               }}
             />
@@ -101,22 +122,21 @@ export default function TrendLolosPerTahun() {
               align="right" 
               iconType="circle"
               wrapperStyle={{ 
-                paddingBottom: 20, 
-                fontSize: "14px", 
+                paddingBottom: 30, 
+                fontSize: "16px", // Font legend ditingkatkan
                 fontWeight: 700, 
                 color: "#0f172a" 
               }}
             />
 
-            {/* Garis Lolos (Hijau Kontras Tinggi) */}
             <Line
               type="monotone"
               dataKey="total_lolos"
               name="Total Lolos"
-              stroke="#00a65a" // Hijau Solid Kontras
-              strokeWidth={4} // Garis dipertebal agar menonjol
-              dot={{ r: 6, fill: "#00a65a", strokeWidth: 2, stroke: "#fff" }} // Titik dengan ring putih
-              activeDot={{ r: 8, strokeWidth: 0 }}
+              stroke="#00a65a"
+              strokeWidth={5} // Garis dipertebal
+              dot={{ r: 7, fill: "#00a65a", strokeWidth: 2, stroke: "#fff" }} // Titik diperbesar
+              activeDot={{ r: 9, strokeWidth: 0 }}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -124,18 +144,18 @@ export default function TrendLolosPerTahun() {
 
       {/* ===== FOOTER INFO ===== */}
       <div style={{ 
-        marginTop: 20, 
-        padding: "12px 16px", 
+        marginTop: 24, 
+        padding: "16px 20px", 
         background: "#f8fafc", 
         borderRadius: "8px",
         border: "1px solid #e2e8f0",
-        fontSize: "13px",
+        fontSize: "15px", // Font footer ditingkatkan
         color: "#64748b",
         display: "flex",
         alignItems: "center",
-        gap: "8px"
+        gap: "10px"
       }}>
-        <span>💡</span> 
+        <span style={{ fontSize: "18px" }}>💡</span> 
         <span>Grafik ini menampilkan total akumulasi peserta yang lolos dari seluruh jenis beasiswa per tahun ajaran.</span>
       </div>
     </div>

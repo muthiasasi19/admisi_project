@@ -9,17 +9,17 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  CartesianGrid
+  CartesianGrid,
+  Label // Import Label untuk sumbu
 } from "recharts";
 
-// Warna Kontras Tinggi (High Contrast Solid Colors)
 const CONTRAST_COLORS = [
   "#003f5c", "#de425b", "#00a65a", "#f39c12", 
   "#8e44ad", "#2c3e50", "#d35400", "#16a085", 
   "#c0392b", "#2980b9", "#27ae60", "#f1c40f"
 ];
 
-export default function DistribusiProfesiOrtu({ showTable = false }) {
+export default function DistribusiProfesiCamaruParent({ showTable = false }) {
   const [data, setData] = useState([]);
   const [profesiList, setProfesiList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,10 +30,7 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
         const res = await axios.get(
           "http://127.0.0.1:8000/analytics/parent-distribution/profesi-camaru"
         );
-
-        // Filter tahun 2016
         const raw = res.data.filter((d) => Number(d.tahun) !== 2016);
-
         const grouped = {};
         const profesiSet = new Set();
 
@@ -44,7 +41,6 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
         });
 
         const profesiArr = Array.from(profesiSet);
-
         const finalData = Object.values(grouped)
           .map((row) => {
             profesiArr.forEach((p) => {
@@ -62,7 +58,6 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
@@ -70,21 +65,15 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
 
   return (
     <div style={{ width: "100%" }}>
-      {/* ===== HEADER SECTION ===== */}
-      <div style={{
-        marginBottom: 24,
-        paddingBottom: 16,
-        borderBottom: "2px solid #e2e8f0"
-      }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: 0 }}>
-          Distribusi Profesi Orang Tua
+      <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #e2e8f0" }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+          Distribusi Profesi Orang Tua Camaru
         </h2>
-        <p style={{ fontSize: 14, color: "#475569", margin: "4px 0 0 0" }}>
-          Analisis latar belakang pekerjaan orang tua mahasiswa per tahun ajaran
+        <p style={{ fontSize: 15, color: "#475569", margin: "4px 0 0 0" }}>
+          Jenis Profesi telah dipetakan menjadi kategori ASN dan Swasta untuk konsistensi analisis.
         </p>
       </div>
 
-      {/* ===== CHART SECTION ===== */}
       <div style={{ 
         background: "#ffffff", 
         borderRadius: 12, 
@@ -92,36 +81,47 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
         border: "1px solid #e2e8f0",
         boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
       }}>
-        <ResponsiveContainer width="100%" height={450}>
+        <ResponsiveContainer width="100%" height={500}>
           <BarChart 
             data={data}
-            // Margin right besar (280) agar Legend profesi tidak menabrak grafik
-            margin={{ top: 10, right: 280, left: 10, bottom: 20 }}
+            margin={{ top: 20, right: 30, left: 40, bottom: 60 }} // Margin disesuaikan untuk label sumbu
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
             
             <XAxis 
               dataKey="tahun" 
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis tegas
+              axisLine={{ stroke: '#475569', strokeWidth: 2 }} 
               tickLine={{ stroke: '#475569' }}
-              tick={{ fill: '#0f172a', fontSize: 13, fontWeight: 700 }}
+              tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 700 }}
               dy={10}
-            />
+            >
+              {/* Label Sumbu X */}
+              <Label 
+                value="Tahun" 
+                offset={-45} 
+                position="insideBottom" 
+                style={{ fontSize: 18, fill: '#64748b' }} 
+              />
+            </XAxis>
             
             <YAxis 
-              axisLine={{ stroke: '#475569', strokeWidth: 2 }} // Garis tegas
+              axisLine={{ stroke: '#475569', strokeWidth: 2 }} 
               tickLine={{ stroke: '#475569' }}
-              tick={{ fill: '#0f172a', fontSize: 13, fontWeight: 600 }}
-            />
+              tick={{ fill: '#0f172a', fontSize: 14, fontWeight: 600 }}
+            >
+              {/* Label Sumbu Y */}
+              <Label 
+                value="Jumlah" 
+                angle={-90} 
+                position="insideLeft" 
+                offset={-30} 
+                style={{ fontSize: 18, fill: '#64748b' }} 
+              />
+            </YAxis>
             
             <Tooltip 
               cursor={{ fill: '#f1f5f9' }}
-              contentStyle={{ 
-                borderRadius: '8px', 
-                border: '1px solid #cbd5e1', 
-                fontWeight: 600,
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' 
-              }}
+              contentStyle={{ borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600 }}
             />
             
             <Legend 
@@ -130,11 +130,11 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
               verticalAlign="middle" 
               iconType="rect"
               wrapperStyle={{ 
-                paddingLeft: "50px", 
-                fontSize: "13px", 
+                paddingLeft: "30px", 
+                fontSize: "14px", 
                 fontWeight: 600,
                 color: "#1e293b",
-                lineHeight: "26px"
+                lineHeight: "28px"
               }}
             />
 
@@ -142,27 +142,26 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
               <Bar 
                 key={p} 
                 dataKey={p} 
+                barSize={40}
                 stackId="a" 
                 fill={CONTRAST_COLORS[i % CONTRAST_COLORS.length]} 
-                radius={[0, 0, 0, 0]}
               />
             ))}
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* ===== TABLE SECTION ===== */}
       {showTable && (
         <div style={{ marginTop: 40 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <div style={{ width: 6, height: 20, background: "#0f172a", borderRadius: 2 }}></div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", margin: 0 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", margin: 0 }}>
               Detail Matriks Profesi
             </h3>
           </div>
 
           <div style={{ overflowX: "auto", borderRadius: 8, border: "2px solid #e2e8f0" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 15 }}>
               <thead>
                 <tr style={{ backgroundColor: "#1e293b" }}>
                   <th style={{ ...th, color: "#ffffff", textAlign: "left" }}>Daftar Profesi</th>
@@ -180,7 +179,7 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
                     <td style={{ ...td, textAlign: "left", fontWeight: 700, color: "#0f172a" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ 
-                          width: 12, height: 12, 
+                          width: 14, height: 14, 
                           background: CONTRAST_COLORS[idx % CONTRAST_COLORS.length] 
                         }}></div>
                         {p}
@@ -202,16 +201,5 @@ export default function DistribusiProfesiOrtu({ showTable = false }) {
   );
 }
 
-const th = {
-  padding: "16px 20px",
-  fontWeight: 700,
-  fontSize: "12px",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em"
-};
-
-const td = {
-  padding: "16px 20px",
-  color: "#334155",
-  textAlign: "center"
-};
+const th = { padding: "18px 20px", fontWeight: 700, fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.05em" };
+const td = { padding: "18px 20px", color: "#334155", textAlign: "center" };

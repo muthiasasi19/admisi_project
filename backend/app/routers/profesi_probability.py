@@ -16,12 +16,14 @@ def probabilitas_registrasi_profesi_per_tahun():
 
     query = text("""
         WITH base AS (
-            SELECT
-                f.Camaru_Id,
-                f.THAJARANID AS tahun,
-                COALESCE(f.Profesi, 'Tidak diketahui') AS profesi
-            FROM analytics.fact_camaru_family f
-        )
+        SELECT
+            f.Camaru_Id,
+            f.THAJARANID AS tahun,
+            f.Profesi AS profesi
+        FROM analytics.fact_camaru_family f
+        WHERE f.Profesi IS NOT NULL
+    )
+
         SELECT
             b.tahun,
             b.profesi,
